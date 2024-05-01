@@ -2,7 +2,6 @@ package core
 
 import (
 	"bufio"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +19,7 @@ func handleClient(client net.Conn) {
 		log.Println("Error reading request line:", err)
 		return
 	}
+	log.Printf("Request line %s", requestLine)
 	if strings.HasPrefix(requestLine, "CONNECT ") {
 		log.Println("Handling CONNECT")
 		// Handle CONNECT for HTTPS
@@ -31,7 +31,7 @@ func handleClient(client net.Conn) {
 	// This is a placeholder for whatever operation you need with the SNI
 }
 
-func handleConnect(client net.Conn, reader *bufio.Reader, requestLine string) {
+func handleConnect(client net.Conn, bufferedReader *bufio.Reader, requestLine string) {
 	// Extract the host and port from the request line
 	hostPort := strings.Split(strings.TrimSpace(strings.TrimPrefix(requestLine, "CONNECT ")), " ")[0]
 	destConn, err := net.Dial("tcp", hostPort)
@@ -51,16 +51,24 @@ func handleConnect(client net.Conn, reader *bufio.Reader, requestLine string) {
 		return
 	}
 	log.Println("Sent 200 OK to the client")
-
+	sni, err := getSNI(bufferedReader)
+	if err != nil {
+		log.Println("Error parsing ClientHello:", err)
+		return
+	}
+	log.Printf("SNI from client %s", sni)
+	log.Println("Start bidirectional tunneling")
 	// Start tunnel - bidirectional copy
 	// Start bidirectional copy
 	done := make(chan error, 2)
 	go func() {
+		log.Println("Starting from destination to client")
 		_, err := io.Copy(destConn, client)
 		done <- err
 	}()
 
 	go func() {
+		log.Println("Start tunelling from client to destination")
 		_, err := io.Copy(client, destConn)
 		done <- err
 	}()
@@ -73,21 +81,17 @@ func handleConnect(client net.Conn, reader *bufio.Reader, requestLine string) {
 	}
 	log.Println("Tunneling completed for both directions")
 }
-func readClientHello(reader io.Reader) (*tls.ClientHelloInfo, error) {
-	var hello *tls.ClientHelloInfo
-	err := tls.Server(readOnlyConn{reader: reader}, &tls.Config{
-		GetConfigForClient: func(argHello *tls.ClientHelloInfo) (*tls.Config, error) {
-			hello = new(tls.ClientHelloInfo)
-			*hello = *argHello
-			return nil, nil
-		},
-	}).Handshake()
 
-	if hello == nil {
-		return nil, err
+// Reads the ClientHello message from a TCP connection to extract the SNI
+func getSNI(reader *bufio.Reader) (string, error) {
+	// Peek at the first few bytes to check for a ClientHello
+	requestLine, err := reader.ReadString('\n')
+	if err != nil {
+		log.Println("Failed to read data from connection:", err)
+		return "", err
 	}
-
-	return hello, nil
+	hostname := strings.Split(strings.TrimSpace(strings.TrimPrefix(strings.ToLower(requestLine), "host: ")), " ")[0]
+	return hostname, nil
 }
 
 func StartForwardProxy(hostname, port string) {
