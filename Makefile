@@ -1,7 +1,7 @@
 OUTPUT_DIR?=./out
 
-.PHONY: build
-build: build-forward-proxy
+.PHONY: build-local
+build-local: build-local-forward-proxy
 
 .PHONY: download-forward-proxy-packages
 download-forward-proxy-packages:
@@ -18,8 +18,8 @@ download: download-core-packages download-forward-proxy-packages
 create-output-dir:
 	mkdir -p ${OUTPUT_DIR}
 
-.PHONY: build-forward-proxy
-build-forward-proxy: download-core-packages download-forward-proxy-packages create-output-dir
+.PHONY: build-local-forward-proxy
+build-local-forward-proxy: download-core-packages download-forward-proxy-packages create-output-dir
 	go build -o ${OUTPUT_DIR}/forward-proxy ./forward-proxy	
 
 .PHONY: clean
