@@ -1,3 +1,4 @@
+ARG DEBIAN_TAG
 FROM golang:1.22.2-bookworm as build
 
 WORKDIR /app
@@ -11,7 +12,7 @@ COPY ./forward-proxy ./forward-proxy
 
 RUN make build-local
 
-FROM debian:bookworm-slim
+FROM debian:${DEBIAN_TAG}
 
 EXPOSE 9090
 WORKDIR /app
