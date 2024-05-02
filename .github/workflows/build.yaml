@@ -1,0 +1,25 @@
+name: Ensure versin increment
+on:
+    pull_request:
+        branches:
+            - main
+        types: 
+            - opened
+            - synchronize
+            - reopened
+        paths:
+            - core/*
+            - forward-proxy/*
+            - Dockerfile
+            - Makefile
+concurrency: 
+    group: "${{ github.workflow_ref }} - ${{ github.ref }} - ${{ github.event_name }}"
+    cancel-in-progress: true
+jobs:
+    check-version-changes:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4.1.1
+            
+            - name: Build the Docker image
+              run: docker build . -t "sfp-${{ github.workflow_ref }}-${{ github.ref }}-${{ github.event_name }}"
