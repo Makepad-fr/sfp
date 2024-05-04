@@ -94,8 +94,17 @@ func getSNI(reader *bufio.Reader) (string, error) {
 	return hostname, nil
 }
 
-func StartForwardProxy(hostname, port string) {
-	address := fmt.Sprintf("%s:%s", hostname, port)
+func Start(config Config) {
+	if config.Tls == nil {
+		log.Println("Starting Forward Proxy Server over HTTP")
+		startForwardProxyHTTP(config)
+		return
+	}
+
+}
+
+func startForwardProxyHTTP(config Config) {
+	address := fmt.Sprintf("%s:%s", config.ServerAddress.HostName, config.ServerAddress.Port)
 	log.Printf("Forward proxy address: %s", address)
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
